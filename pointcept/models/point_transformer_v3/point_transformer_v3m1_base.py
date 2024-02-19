@@ -16,6 +16,7 @@ from timm.models.layers import DropPath
 
 try:
     import flash_attn
+    from flash_attn.flash_attention import flash_attn_unpadded_qkvpacked_func
 except ImportError:
     flash_attn = None
 
@@ -205,7 +206,14 @@ class SerializedAttention(PointModule):
             attn = self.attn_drop(attn).to(qkv.dtype)
             feat = (attn @ v).transpose(1, 2).reshape(-1, C)
         else:
-            feat = flash_attn.flash_attn_varlen_qkvpacked_func(
+            # feat = flash_attn.flash_attn_varlen_qkvpacked_func(
+            #     qkv.half().reshape(-1, 3, H, C // H),
+            #     cu_seqlens,
+            #     max_seqlen=self.patch_size,
+            #     dropout_p=self.attn_drop if self.training else 0,
+            #     softmax_scale=self.scale,
+            # ).reshape(-1, C)
+            feat = flash_attn_unpadded_qkvpacked_func(
                 qkv.half().reshape(-1, 3, H, C // H),
                 cu_seqlens,
                 max_seqlen=self.patch_size,
